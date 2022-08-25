@@ -22,7 +22,8 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Streaming App',
       theme: ThemeData(
-        primarySwatch: Colors.blue,
+        colorSchemeSeed: Colors.purpleAccent,
+        useMaterial3: true,
       ),
       home: const HomeScreen(),
     );
