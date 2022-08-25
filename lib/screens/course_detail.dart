@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/material.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:streaming_app/models/course.dart';
 import 'package:chewie/chewie.dart';
 import 'package:streaming_app/providers/current_course_provider.dart';
@@ -37,14 +38,15 @@ class _CourseDetailState extends ConsumerState<CourseDetail> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     final course = ref.watch(currentCourseProvider)!.course;
+    final Duration startTime = _getSavedCourseTime(course.id);
     videoPlayerController =
         VideoPlayerController.network(Endpoints.host + course.videoUrl);
     chewieController = ChewieController(
-      videoPlayerController: videoPlayerController,
-      autoPlay: true,
-      looping: false,
-      allowMuting: false,
-    );
+        videoPlayerController: videoPlayerController,
+        autoPlay: true,
+        looping: false,
+        allowMuting: false,
+        startAt: startTime);
     _isPlaying = chewieController.isPlaying;
     videoPlayerController.addListener(() {
       if (!_isPlaying) {
@@ -145,7 +147,9 @@ class _CourseDetailState extends ConsumerState<CourseDetail> {
                     ),
               if (!ref.watch(currentCourseProvider)!.expanded)
                 GestureDetector(
-                  onTap: () {
+                  onTap: () async {
+                    await videoPlayerController.pause();
+                    _saveCurrentTime();
                     ref.read(currentCourseProvider.notifier).state = null;
                   },
                   child: Icon(
@@ -161,9 +165,36 @@ class _CourseDetailState extends ConsumerState<CourseDetail> {
   }
 
   @override
-  void dispose() {
+  void dispose() async {
     videoPlayerController.dispose();
     chewieController.dispose();
     super.dispose();
+  }
+
+  _saveCurrentTime() {
+    final box = Hive.box('course_playback');
+    Course? currentCourse = ref.read(currentCourseProvider)?.course;
+    if (currentCourse != null) {
+      box.put('last_played', currentCourse.toRawJson());
+      Map<String, dynamic> data = {
+        'course': currentCourse.toJson(),
+        'time': videoPlayerController.value.position.inSeconds
+      };
+      box.put(currentCourse.id, jsonEncode(data)).then((value) {
+        print(
+            'Saved Course: ${currentCourse.id} at ${videoPlayerController.value.position}');
+      });
+    }
+  }
+
+  Duration _getSavedCourseTime(int id) {
+    final box = Hive.box('course_playback');
+    dynamic savedData = box.get(id);
+    if (savedData != null) {
+      int seconds = jsonDecode(savedData)['time'];
+      print('Starts at: ${Duration(seconds: seconds)}');
+      return Duration(seconds: seconds);
+    }
+    return Duration.zero;
   }
 }

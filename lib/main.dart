@@ -6,6 +6,7 @@ import 'package:streaming_app/screens/home.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Hive.initFlutter();
+  Hive.openBox('course_playback');
   runApp(
     const ProviderScope(
       child: MyApp(),
