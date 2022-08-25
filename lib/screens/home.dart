@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:streaming_app/models/course.dart';
+import 'package:streaming_app/providers/current_course_provider.dart';
 import 'package:streaming_app/providers/home_provider.dart';
+import 'package:streaming_app/screens/course_detail.dart';
 import 'package:streaming_app/utils/constants.dart';
 import 'package:streaming_app/utils/endpoints.dart';
 
@@ -17,51 +19,63 @@ class HomeScreen extends ConsumerWidget {
     TextTheme textTheme = Theme.of(context).textTheme;
     return Scaffold(
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Column(
-                mainAxisSize: MainAxisSize.min,
+        child: Stack(
+          children: [
+            SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Good',
-                    style: Theme.of(context).textTheme.displayMedium,
-                  ),
-                  RichText(
-                    text: TextSpan(
-                      style:
-                          Theme.of(context).textTheme.displayMedium!.copyWith(
-                                color: Theme.of(context).colorScheme.primary,
-                              ),
-                      children: [
-                        TextSpan(
-                          text: getPeriodOfDay.characters.first,
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Good',
+                        style: Theme.of(context).textTheme.displayMedium,
+                      ),
+                      RichText(
+                        text: TextSpan(
                           style: Theme.of(context)
                               .textTheme
                               .displayMedium!
                               .copyWith(
                                 color: Theme.of(context).colorScheme.primary,
-                                decorationStyle: TextDecorationStyle.double,
-                                decoration: TextDecoration.underline,
                               ),
+                          children: [
+                            TextSpan(
+                              text: getPeriodOfDay.characters.first,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .displayMedium!
+                                  .copyWith(
+                                    color:
+                                        Theme.of(context).colorScheme.primary,
+                                    decorationStyle: TextDecorationStyle.double,
+                                    decoration: TextDecoration.underline,
+                                  ),
+                            ),
+                            TextSpan(
+                              text: getPeriodOfDay.characters.skip(1).string,
+                            )
+                          ],
                         ),
-                        TextSpan(
-                          text: getPeriodOfDay.characters.skip(1).string,
-                        )
-                      ],
-                    ),
-                  )
+                      )
+                    ],
+                  ),
+                  verticalGap16,
+                  //If there were any video continuing
+                  _ContinueCourseSection(),
+                  _CourseListSection(),
                 ],
               ),
-              verticalGap16,
-              //If there were any video continuing
-              _ContinueCourseSection(),
-              _CourseListSection(),
-            ],
-          ),
+            ),
+            if (ref.watch(currentCourseProvider) != null)
+              const Align(
+                alignment: Alignment.bottomRight,
+                child: CourseDetail(),
+              )
+          ],
         ),
       ),
     );
@@ -192,42 +206,50 @@ class CourseCard extends ConsumerWidget {
         borderRadius: BorderRadius.circular(16),
       ),
       margin: const EdgeInsets.symmetric(vertical: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Thumbnail(url: course.thumbnail),
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 8,
-            ),
-            child: Column(
-              children: [
-                Text(
-                  course.title,
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.thumb_up_alt_outlined,
-                      color: Colors.green,
-                      size: 16,
-                    ),
-                    Text(course.likes.toString()),
-                    const SizedBox(width: 16),
-                    const Icon(
-                      Icons.thumb_down_alt_outlined,
-                      color: Colors.redAccent,
-                      size: 16,
-                    ),
-                    Text(course.dislikes.toString()),
-                  ],
-                )
-              ],
-            ),
-          )
-        ],
+      child: InkWell(
+        onTap: () {
+          // final route = MaterialPageRoute(builder: (ctx) => CourseDetail());
+          // Navigator.push(context, route);
+          ref.read(currentCourseProvider.notifier).state =
+              CurrentCourseState(course: course);
+        },
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Thumbnail(url: course.thumbnail),
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 8,
+              ),
+              child: Column(
+                children: [
+                  Text(
+                    course.title,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.thumb_up_alt_outlined,
+                        color: Colors.green,
+                        size: 16,
+                      ),
+                      Text(course.likes.toString()),
+                      const SizedBox(width: 16),
+                      const Icon(
+                        Icons.thumb_down_alt_outlined,
+                        color: Colors.redAccent,
+                        size: 16,
+                      ),
+                      Text(course.dislikes.toString()),
+                    ],
+                  )
+                ],
+              ),
+            )
+          ],
+        ),
       ),
     );
   }
