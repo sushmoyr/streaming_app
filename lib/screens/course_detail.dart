@@ -28,6 +28,7 @@ class _CourseDetailState extends ConsumerState<CourseDetail> {
   late final ChewieController chewieController;
   double _ratio = 16 / 9;
   late bool _isPlaying;
+  bool showFeedbackMsg = true;
 
   @override
   void initState() {
@@ -59,6 +60,7 @@ class _CourseDetailState extends ConsumerState<CourseDetail> {
           _ratio = videoPlayerController.value.aspectRatio;
         });
       }
+      _showFeedbackCard();
     });
   }
 
@@ -196,5 +198,38 @@ class _CourseDetailState extends ConsumerState<CourseDetail> {
       return Duration(seconds: seconds);
     }
     return Duration.zero;
+  }
+
+  void _showFeedbackCard() {
+    print(videoPlayerController.value.position);
+    if (videoPlayerController.value.position
+                .compareTo(const Duration(minutes: 1)) ==
+            1 &&
+        showFeedbackMsg) {
+      showFeedbackMsg = false;
+      showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+                title: Text('Do you like this video?'),
+                content: Text(
+                    'Did you like the video? If so, please hit the like button below'),
+                actions: [
+                  ElevatedButton.icon(
+                      onPressed: () {
+                        //call like api
+                        Navigator.pop(ctx);
+                      },
+                      icon: Icon(Icons.thumb_up_alt_outlined),
+                      label: Text('Yes')),
+                  TextButton.icon(
+                      onPressed: () {
+                        //call dislike api
+                        Navigator.pop(ctx);
+                      },
+                      icon: Icon(Icons.thumb_down_alt_outlined),
+                      label: Text('No')),
+                ],
+              ));
+    }
   }
 }
