@@ -166,7 +166,7 @@ class _CourseDetailState extends ConsumerState<CourseDetail> {
                     _saveCurrentTime();
                     ref.read(currentCourseProvider.notifier).state = null;
                   },
-                  child: Icon(
+                  child: const Icon(
                     Icons.cancel,
                     color: Colors.red,
                   ),
@@ -189,13 +189,15 @@ class _CourseDetailState extends ConsumerState<CourseDetail> {
     final box = Hive.box('course_playback');
     Course? currentCourse = ref.read(currentCourseProvider)?.course;
     if (currentCourse != null) {
-      box.put('last_played', currentCourse.toRawJson());
+      box.put('last_played', currentCourse.toRawJson()).then((value) {
+        ref.refresh(lastViewedCourseProvider);
+      });
       Map<String, dynamic> data = {
         'course': currentCourse.toJson(),
         'time': videoPlayerController.value.position.inSeconds
       };
       box.put(currentCourse.id, jsonEncode(data)).then((value) {
-        print(
+        debugPrint(
             'Saved Course: ${currentCourse.id} at ${videoPlayerController.value.position}');
       });
     }
@@ -206,14 +208,14 @@ class _CourseDetailState extends ConsumerState<CourseDetail> {
     dynamic savedData = box.get(id);
     if (savedData != null) {
       int seconds = jsonDecode(savedData)['time'];
-      print('Starts at: ${Duration(seconds: seconds)}');
+      debugPrint('Starts at: ${Duration(seconds: seconds)}');
       return Duration(seconds: seconds);
     }
     return Duration.zero;
   }
 
   void _showFeedbackCard() {
-    print(videoPlayerController.value.position);
+    debugPrint(videoPlayerController.value.position.toString());
     if (videoPlayerController.value.position
                 .compareTo(const Duration(minutes: 1)) ==
             1 &&
@@ -222,8 +224,8 @@ class _CourseDetailState extends ConsumerState<CourseDetail> {
       showDialog(
           context: context,
           builder: (ctx) => AlertDialog(
-                title: Text('Do you like this video?'),
-                content: Text(
+                title: const Text('Do you like this video?'),
+                content: const Text(
                     'Did you like the video? If so, please hit the like button below'),
                 actions: [
                   ElevatedButton.icon(
@@ -238,8 +240,8 @@ class _CourseDetailState extends ConsumerState<CourseDetail> {
                         });
                         Navigator.pop(ctx);
                       },
-                      icon: Icon(Icons.thumb_up_alt_outlined),
-                      label: Text('Yes')),
+                      icon: const Icon(Icons.thumb_up_alt_outlined),
+                      label: const Text('Yes')),
                   TextButton.icon(
                       onPressed: () {
                         //call dislike api
@@ -251,8 +253,8 @@ class _CourseDetailState extends ConsumerState<CourseDetail> {
                         });
                         Navigator.pop(ctx);
                       },
-                      icon: Icon(Icons.thumb_down_alt_outlined),
-                      label: Text('No')),
+                      icon: const Icon(Icons.thumb_down_alt_outlined),
+                      label: const Text('No')),
                 ],
               ));
     }

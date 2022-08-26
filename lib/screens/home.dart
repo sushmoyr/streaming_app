@@ -209,6 +209,9 @@ class CourseCard extends ConsumerWidget {
         onTap: () {
           // final route = MaterialPageRoute(builder: (ctx) => CourseDetail());
           // Navigator.push(context, route);
+          if (ref.read(currentCourseProvider.notifier).state != null) {
+            ref.read(currentCourseProvider.notifier).state = null;
+          }
           ref.read(currentCourseProvider.notifier).state =
               CurrentCourseState(course: course);
         },
