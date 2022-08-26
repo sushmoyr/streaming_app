@@ -6,6 +6,8 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:streaming_app/models/course.dart';
 import 'package:chewie/chewie.dart';
 import 'package:streaming_app/providers/current_course_provider.dart';
+import 'package:streaming_app/providers/home_provider.dart';
+import 'package:streaming_app/repository/course_repository.dart';
 import 'package:streaming_app/utils/endpoints.dart';
 import 'package:video_player/video_player.dart';
 
@@ -29,6 +31,7 @@ class _CourseDetailState extends ConsumerState<CourseDetail> {
   double _ratio = 16 / 9;
   late bool _isPlaying;
   bool showFeedbackMsg = true;
+  late int _courseId;
 
   @override
   void initState() {
@@ -38,7 +41,8 @@ class _CourseDetailState extends ConsumerState<CourseDetail> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final course = ref.watch(currentCourseProvider)!.course;
+    final course = ref.read(currentCourseProvider)!.course;
+    _courseId = course.id;
     final Duration startTime = _getSavedCourseTime(course.id);
     videoPlayerController =
         VideoPlayerController.network(Endpoints.host + course.videoUrl);
@@ -72,6 +76,18 @@ class _CourseDetailState extends ConsumerState<CourseDetail> {
     double width = ref.watch(currentCourseProvider)!.expanded
         ? MediaQuery.of(context).size.width
         : height * _ratio;
+    int? likes;
+    int? dislikes;
+
+    ref.watch(courseProvider(_courseId)).when(
+          data: (course) {
+            likes = course.likes;
+            dislikes = course.dislikes;
+          },
+          error: (e, s) {},
+          loading: () {},
+        );
+
     return SizedBox(
       width: width,
       height: height,
@@ -108,27 +124,23 @@ class _CourseDetailState extends ConsumerState<CourseDetail> {
                               ),
                               Row(
                                 children: [
-                                  const Icon(
-                                    Icons.thumb_up_alt_outlined,
-                                    color: Colors.green,
-                                    size: 16,
-                                  ),
-                                  Text(ref
-                                      .watch(currentCourseProvider)!
-                                      .course
-                                      .likes
-                                      .toString()),
-                                  const SizedBox(width: 16),
-                                  const Icon(
-                                    Icons.thumb_down_alt_outlined,
-                                    color: Colors.redAccent,
-                                    size: 16,
-                                  ),
-                                  Text(ref
-                                      .watch(currentCourseProvider)!
-                                      .course
-                                      .dislikes
-                                      .toString()),
+                                  if (likes != null) ...[
+                                    const Icon(
+                                      Icons.thumb_up_alt_outlined,
+                                      color: Colors.green,
+                                      size: 16,
+                                    ),
+                                    Text(likes!.toString()),
+                                    const SizedBox(width: 16),
+                                  ],
+                                  if (dislikes != null) ...[
+                                    const Icon(
+                                      Icons.thumb_down_alt_outlined,
+                                      color: Colors.redAccent,
+                                      size: 16,
+                                    ),
+                                    Text(dislikes.toString()),
+                                  ]
                                 ],
                               )
                             ],
@@ -154,7 +166,7 @@ class _CourseDetailState extends ConsumerState<CourseDetail> {
                     _saveCurrentTime();
                     ref.read(currentCourseProvider.notifier).state = null;
                   },
-                  child: Icon(
+                  child: const Icon(
                     Icons.cancel,
                     color: Colors.red,
                   ),
@@ -177,13 +189,15 @@ class _CourseDetailState extends ConsumerState<CourseDetail> {
     final box = Hive.box('course_playback');
     Course? currentCourse = ref.read(currentCourseProvider)?.course;
     if (currentCourse != null) {
-      box.put('last_played', currentCourse.toRawJson());
+      box.put('last_played', currentCourse.toRawJson()).then((value) {
+        ref.refresh(lastViewedCourseProvider);
+      });
       Map<String, dynamic> data = {
         'course': currentCourse.toJson(),
         'time': videoPlayerController.value.position.inSeconds
       };
       box.put(currentCourse.id, jsonEncode(data)).then((value) {
-        print(
+        debugPrint(
             'Saved Course: ${currentCourse.id} at ${videoPlayerController.value.position}');
       });
     }
@@ -194,14 +208,14 @@ class _CourseDetailState extends ConsumerState<CourseDetail> {
     dynamic savedData = box.get(id);
     if (savedData != null) {
       int seconds = jsonDecode(savedData)['time'];
-      print('Starts at: ${Duration(seconds: seconds)}');
+      debugPrint('Starts at: ${Duration(seconds: seconds)}');
       return Duration(seconds: seconds);
     }
     return Duration.zero;
   }
 
   void _showFeedbackCard() {
-    print(videoPlayerController.value.position);
+    debugPrint(videoPlayerController.value.position.toString());
     if (videoPlayerController.value.position
                 .compareTo(const Duration(minutes: 1)) ==
             1 &&
@@ -210,24 +224,37 @@ class _CourseDetailState extends ConsumerState<CourseDetail> {
       showDialog(
           context: context,
           builder: (ctx) => AlertDialog(
-                title: Text('Do you like this video?'),
-                content: Text(
+                title: const Text('Do you like this video?'),
+                content: const Text(
                     'Did you like the video? If so, please hit the like button below'),
                 actions: [
                   ElevatedButton.icon(
                       onPressed: () {
                         //call like api
+                        ref
+                            .read(courseRepositoryProvider)
+                            .performAction(_courseId, CourseAction.like)
+                            .then((value) {
+                          ref.refresh(courseProvider(_courseId));
+                          ref.refresh(homeProvider);
+                        });
                         Navigator.pop(ctx);
                       },
-                      icon: Icon(Icons.thumb_up_alt_outlined),
-                      label: Text('Yes')),
+                      icon: const Icon(Icons.thumb_up_alt_outlined),
+                      label: const Text('Yes')),
                   TextButton.icon(
                       onPressed: () {
                         //call dislike api
+                        ref
+                            .read(courseRepositoryProvider)
+                            .performAction(_courseId, CourseAction.dislike)
+                            .then((value) {
+                          ref.refresh(courseProvider(_courseId));
+                        });
                         Navigator.pop(ctx);
                       },
-                      icon: Icon(Icons.thumb_down_alt_outlined),
-                      label: Text('No')),
+                      icon: const Icon(Icons.thumb_down_alt_outlined),
+                      label: const Text('No')),
                 ],
               ));
     }
