@@ -6,6 +6,8 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:streaming_app/models/course.dart';
 import 'package:chewie/chewie.dart';
 import 'package:streaming_app/providers/current_course_provider.dart';
+import 'package:streaming_app/providers/home_provider.dart';
+import 'package:streaming_app/repository/course_repository.dart';
 import 'package:streaming_app/utils/endpoints.dart';
 import 'package:video_player/video_player.dart';
 
@@ -29,6 +31,7 @@ class _CourseDetailState extends ConsumerState<CourseDetail> {
   double _ratio = 16 / 9;
   late bool _isPlaying;
   bool showFeedbackMsg = true;
+  late int _courseId;
 
   @override
   void initState() {
@@ -38,7 +41,8 @@ class _CourseDetailState extends ConsumerState<CourseDetail> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final course = ref.watch(currentCourseProvider)!.course;
+    final course = ref.read(currentCourseProvider)!.course;
+    _courseId = course.id;
     final Duration startTime = _getSavedCourseTime(course.id);
     videoPlayerController =
         VideoPlayerController.network(Endpoints.host + course.videoUrl);
@@ -72,6 +76,18 @@ class _CourseDetailState extends ConsumerState<CourseDetail> {
     double width = ref.watch(currentCourseProvider)!.expanded
         ? MediaQuery.of(context).size.width
         : height * _ratio;
+    int? likes;
+    int? dislikes;
+
+    ref.watch(courseProvider(_courseId)).when(
+          data: (course) {
+            likes = course.likes;
+            dislikes = course.dislikes;
+          },
+          error: (e, s) {},
+          loading: () {},
+        );
+
     return SizedBox(
       width: width,
       height: height,
@@ -108,27 +124,23 @@ class _CourseDetailState extends ConsumerState<CourseDetail> {
                               ),
                               Row(
                                 children: [
-                                  const Icon(
-                                    Icons.thumb_up_alt_outlined,
-                                    color: Colors.green,
-                                    size: 16,
-                                  ),
-                                  Text(ref
-                                      .watch(currentCourseProvider)!
-                                      .course
-                                      .likes
-                                      .toString()),
-                                  const SizedBox(width: 16),
-                                  const Icon(
-                                    Icons.thumb_down_alt_outlined,
-                                    color: Colors.redAccent,
-                                    size: 16,
-                                  ),
-                                  Text(ref
-                                      .watch(currentCourseProvider)!
-                                      .course
-                                      .dislikes
-                                      .toString()),
+                                  if (likes != null) ...[
+                                    const Icon(
+                                      Icons.thumb_up_alt_outlined,
+                                      color: Colors.green,
+                                      size: 16,
+                                    ),
+                                    Text(likes!.toString()),
+                                    const SizedBox(width: 16),
+                                  ],
+                                  if (dislikes != null) ...[
+                                    const Icon(
+                                      Icons.thumb_down_alt_outlined,
+                                      color: Colors.redAccent,
+                                      size: 16,
+                                    ),
+                                    Text(dislikes.toString()),
+                                  ]
                                 ],
                               )
                             ],
@@ -217,6 +229,13 @@ class _CourseDetailState extends ConsumerState<CourseDetail> {
                   ElevatedButton.icon(
                       onPressed: () {
                         //call like api
+                        ref
+                            .read(courseRepositoryProvider)
+                            .performAction(_courseId, CourseAction.like)
+                            .then((value) {
+                          ref.refresh(courseProvider(_courseId));
+                          ref.refresh(homeProvider);
+                        });
                         Navigator.pop(ctx);
                       },
                       icon: Icon(Icons.thumb_up_alt_outlined),
@@ -224,6 +243,12 @@ class _CourseDetailState extends ConsumerState<CourseDetail> {
                   TextButton.icon(
                       onPressed: () {
                         //call dislike api
+                        ref
+                            .read(courseRepositoryProvider)
+                            .performAction(_courseId, CourseAction.dislike)
+                            .then((value) {
+                          ref.refresh(courseProvider(_courseId));
+                        });
                         Navigator.pop(ctx);
                       },
                       icon: Icon(Icons.thumb_down_alt_outlined),

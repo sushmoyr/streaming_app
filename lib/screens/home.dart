@@ -107,29 +107,28 @@ class _ContinueCourseSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final textTheme = Theme.of(context).textTheme;
-    final Course dummyCourse = Course(
-        id: 1,
-        title: 'title',
-        videoUrl: 'videoUrl',
-        thumbnail: 'thumbnail',
-        likes: 145,
-        dislikes: 111);
-    bool hasContinueCourse = false;
-    return hasContinueCourse
-        ? Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Continue Watching',
-                style: textTheme.headlineMedium,
-              ),
-              CourseCard(
-                course: dummyCourse,
-              ),
-              verticalGap16,
-            ],
-          )
-        : Container();
+    return ref.watch(lastViewedCourseProvider).when<Widget>(
+          data: (course) {
+            bool hasContinueCourse = course != null;
+            return hasContinueCourse
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Continue Watching',
+                        style: textTheme.headlineMedium,
+                      ),
+                      CourseCard(
+                        course: course,
+                      ),
+                      verticalGap16,
+                    ],
+                  )
+                : Container();
+          },
+          error: (e, s) => Container(),
+          loading: () => Container(),
+        );
   }
 }
 
